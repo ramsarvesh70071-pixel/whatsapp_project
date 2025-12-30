@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QuickConnect Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { background-color: #e5ddd5; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+
+        #chat-container { width: 400px; background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; }
+
+        #header { background: #075e54; color: white; padding: 15px; text-align: center; font-weight: bold; }
+
+        #messages {
+            height: 450px; padding: 20px; overflow-y: auto;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            display: flex; flex-direction: column;
+        }
+
+        .message-box { padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; max-width: 75%; position: relative; font-size: 14px; }
+
+        .sent { background-color: #dcf8c6; align-self: flex-end; border-top-right-radius: 0; box-shadow: -1px 1px 2px rgba(0,0,0,0.1); }
+
+        .received { background-color: #ffffff; align-self: flex-start; border-top-left-radius: 0; box-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+
+        .sender-name { font-size: 10px; font-weight: bold; color: #075e54; margin-bottom: 3px; }
+
+        .input-area { padding: 15px; background: #f0f0f0; display: flex; gap: 10px; }
+
+        input { padding: 10px; border-radius: 20px; border: 1px solid #ddd; outline: none; flex: 1; }
+
+        button { background-color: #128c7e; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+
+        button:hover { background-color: #075e54; }
+    </style>
+</head>
+<body>
+
+<div id="chat-container">
+    <div id="header">QuickConnect Chat</div>
+    <div id="messages"></div>
+    <div style="padding: 10px; background: #eee;">
+        <input type="text" id="name" placeholder="Apna Name" style="width: 90%; margin-bottom: 5px;">
+    </div>
+    <div class="input-area">
+        <input type="text" id="message" placeholder="Type a message..." onkeypress="if(event.key === 'Enter') sendMessage()">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+    var stompClient = null;
+
+    function connect() {
+        var socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function (frame) {
+            stompClient.subscribe('/topic/public', function (message) {
+                showMessage(JSON.parse(message.body));
+            });
+        });
+    }
+
+    function sendMessage() {
+        var nameInput = document.getElementById('name');
+        var messageInput = document.getElementById('message');
+
+        if(nameInput.value && messageInput.value) {
+            stompClient.send("/app/chat.sendMessage", {},
+                JSON.stringify({'sender': nameInput.value, 'content': messageInput.value}));
+            messageInput.value = '';
+        } else {
+            alert("Naam aur Message dono likhein!");
+        }
+    }
+
+    function showMessage(message) {
+        var container = document.getElementById('messages');
+        var myName = document.getElementById('name').value;
+
+        var div = document.createElement('div');
+        div.classList.add('message-box');
+
+        if (message.sender === myName) {
+            div.classList.add('sent');
+        } else {
+            div.classList.add('received');
+            var nameSpan = document.createElement('div');
+            nameSpan.classList.add('sender-name');
+            nameSpan.innerText = message.sender;
+            div.appendChild(nameSpan);
+        }
+
+        var contentSpan = document.createElement('div');
+        contentSpan.innerText = message.content;
+        div.appendChild(contentSpan);
+
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight; // Auto scroll to bottom
+    }
+
+    connect();
+</script>
+</body>
+</html>
